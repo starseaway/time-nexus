@@ -26,6 +26,10 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
     packagingOptions {
         // 剔除这个包下的所有文件（不会移除签名信息）
         exclude 'META-INF/*******'
