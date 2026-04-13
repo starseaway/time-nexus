@@ -1,10 +1,10 @@
-# TimeNexus 日期时间枢纽
+# TimeNexus 日期时间框架
 
 <div align="center">
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.2-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -72,13 +72,13 @@ maven {
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
 dependencies {
-    implementation 'com.github.starseaway:time-nexus:3.0.0'
+    implementation 'com.github.starseaway:time-nexus:3.0.2'
 }
 ```
 
 ```kotlin
 dependencies {
-    implementation("com.github.starseaway:time-nexus:3.0.0")
+    implementation("com.github.starseaway:time-nexus:3.0.2")
 }
 ```
 
@@ -242,6 +242,11 @@ com.xinyi.timenexus
 ```
 
 ## 六、版本变更记录
+
+### V3.0.2 (2026-04-13)
+🦄 refactor:
+- 扩展函数统一添加 object 包裹，优化结构与命名空间
+- 添加 @JvmStatic，提升 Java 互操作性
 
 ### V3.0.0 (2026-04-01)
 - 引入 **TimeContext（核心架构升级）**
