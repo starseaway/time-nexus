@@ -1,5 +1,6 @@
 package com.xinyi.timenexus.calendar;
 
+import com.xinyi.timenexus.DateTimeNexus;
 import com.xinyi.timenexus.core.TimeContext;
 
 import java.util.ArrayList;
@@ -8,13 +9,14 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 月度日历网格（纯数据模型，不依赖 UI）
+ * 月度日历网格构建器
  *
  * <p> 用于构建一个完整日历面板数据：</p>
  * <ul>
  *   <li> 支持补全上月 / 下月日期 </li>
  *   <li> 支持自定义一周起始（周日 or 周一） </li>
  *   <li> 返回固定网格结构（6行 x 7列 = 42天） </li>
+ *   <li> 支持 {@link #rebuild(Date)} 原地刷新，供长期持有的场景复用同一实例 </li>
  * </ul>
  *
  * @author 新一
@@ -23,14 +25,34 @@ import java.util.List;
 public class MonthGrid {
 
     /**
+     * 创建 MonthGrid
+     *
+     * @param date 任意日期
+     */
+    public static MonthGrid of(Date date) {
+        return new MonthGrid(date, DateTimeNexus.getContext(), Calendar.MONDAY);
+    }
+
+    /**
+     * 创建 MonthGrid
+     *
+     * @param date 任意日期
+     * @param context 时间上下文
+     * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
+     */
+    public static MonthGrid of(Date date, TimeContext context, int firstDayOfWeek) {
+        return new MonthGrid(date, context, firstDayOfWeek);
+    }
+
+    /**
      * 一周的起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
-    private final int firstDayOfWeek;
+    private int firstDayOfWeek;
 
     /**
      * 当前月份的基准日期
      */
-    private final Date currentDate;
+    private Date currentDate;
 
     /**
      * 时间上下文
@@ -40,7 +62,7 @@ public class MonthGrid {
     /**
      * 最终的42天数据
      */
-    private final List<DayInfo> days;
+    private final List<DayInfo> days = new ArrayList<>(42);
 
     /**
      * 构造函数
@@ -50,21 +72,31 @@ public class MonthGrid {
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
     private MonthGrid(Date currentDate, TimeContext context, int firstDayOfWeek) {
-        this.currentDate = currentDate;
         this.context = context;
-        this.firstDayOfWeek = firstDayOfWeek;
-        this.days = build();
+        rebuild(currentDate, firstDayOfWeek);
     }
 
     /**
-     * 创建 MonthGrid
+     * 按新日期重建网格数据（保留当前一周起始设置）
      *
-     * @param date 当前月份任意日期
-     * @param context 时间上下文
+     * @param date 任意日期
+     */
+    public MonthGrid rebuild(Date date) {
+        return rebuild(date, firstDayOfWeek);
+    }
+
+    /**
+     * 按新日期与一周起始重建网格数据
+     *
+     * @param date 任意日期
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
-    public static MonthGrid of(Date date, TimeContext context, int firstDayOfWeek) {
-        return new MonthGrid(date, context, firstDayOfWeek);
+    public MonthGrid rebuild(Date date, int firstDayOfWeek) {
+        this.currentDate = date;
+        this.firstDayOfWeek = firstDayOfWeek;
+        days.clear();
+        days.addAll(build());
+        return this;
     }
 
     /**
@@ -127,7 +159,7 @@ public class MonthGrid {
      */
     private int computeOffset(int dayOfWeek) {
         if (firstDayOfWeek == Calendar.MONDAY) {
-            // 转换：让周一=1
+            // 转换：让周一 = 1
             int normalized = (dayOfWeek == Calendar.SUNDAY) ? 7 : dayOfWeek - 1;
             return normalized - 1;
         } else {

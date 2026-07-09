@@ -23,26 +23,26 @@ import java.util.Date;
 public final class DateTimeNexus {
 
     /**
-     * 全局默认时间上下文（系统时区）
+     * 全局时间上下文（默认系统时区）
      */
-    public static volatile TimeContext DEFAULT_CONTEXT = new TimeContext.Builder().build();
+    private static volatile TimeContext sTimeContext = new TimeContext.Builder().build();
 
     private DateTimeNexus() { }
 
     /**
-     * 设置全局默认上下文
+     * 设置全局上下文
      */
-    public static void setDefaultContext(TimeContext context) {
+    public static void setContext(TimeContext context) {
         if (context != null) {
-            DEFAULT_CONTEXT = context;
+            sTimeContext = context;
         }
     }
 
     /**
-     * 获取全局默认上下文
+     * 获取全局时间上下文
      */
-    public static TimeContext getDefaultContext() {
-        return DEFAULT_CONTEXT;
+    public static TimeContext getContext() {
+        return sTimeContext;
     }
 
     /**
@@ -81,14 +81,14 @@ public final class DateTimeNexus {
      * 获取星期名称
      */
     public static String getWeekDayName() {
-        return DateTime.withDefault().getWeekDayName();
+        return DateTime.with().getWeekDayName();
     }
 
     /**
      * 获取星期名称（简写）
      */
     public static String getWeekDayShortName() {
-        return DateTime.withDefault().getWeekDayShortName();
+        return DateTime.with().getWeekDayShortName();
     }
 
     /**
@@ -121,7 +121,7 @@ public final class DateTimeNexus {
      * @param pattern 格式化模式
      */
     public static String format(Date date, String pattern) {
-        return DateFormatter.format(DEFAULT_CONTEXT, date, pattern);
+        return DateFormatter.format(sTimeContext, date, pattern);
     }
 
     /**
@@ -275,7 +275,7 @@ public final class DateTimeNexus {
      * @param pattern 格式化模式
      */
     public static Date parse(String datetime, String pattern) {
-        return DateFormatter.parse(DEFAULT_CONTEXT, datetime, pattern);
+        return DateFormatter.parse(sTimeContext, datetime, pattern);
     }
 
     /**
@@ -284,7 +284,7 @@ public final class DateTimeNexus {
      * @param datetime 日期时间字符串
      */
     public static Date smartParse(String datetime) {
-        return DateFormatter.smartParse(DEFAULT_CONTEXT, datetime);
+        return DateFormatter.smartParse(sTimeContext, datetime);
     }
 
     /**
@@ -293,7 +293,7 @@ public final class DateTimeNexus {
      * @param datetime 日期时间字符串
      */
     public static Date smartParsePlus(String datetime) {
-        return DateFormatter.smartParsePlus(DEFAULT_CONTEXT, datetime);
+        return DateFormatter.smartParsePlus(sTimeContext, datetime);
     }
 
     /**
@@ -303,14 +303,14 @@ public final class DateTimeNexus {
      * @param patterns 格式列表
      */
     public static Date parseMultiple(String text, String... patterns) {
-        return DateFormatter.tryParseMultiple(DEFAULT_CONTEXT, text, patterns);
+        return DateFormatter.tryParseMultiple(sTimeContext, text, patterns);
     }
 
     /**
      * 多格式解析（增强版）
      */
     public static Date parseMultiplePlus(String text, String... patterns) {
-        return DateFormatter.tryParseMultiplePlus(DEFAULT_CONTEXT, text, patterns);
+        return DateFormatter.tryParseMultiplePlus(sTimeContext, text, patterns);
     }
 
     /**
@@ -319,7 +319,7 @@ public final class DateTimeNexus {
      * @param days 天数
      */
     public static Date plusDays(int days) {
-        return DateTime.withDefault().plusDays(days).toDate();
+        return DateTime.with().plusDays(days).toDate();
     }
 
     /**
@@ -328,7 +328,7 @@ public final class DateTimeNexus {
      * @param days 天数
      */
     public static Date minusDays(int days) {
-        return DateTime.withDefault().minusDays(days).toDate();
+        return DateTime.with().minusDays(days).toDate();
     }
 
     /**
@@ -337,7 +337,7 @@ public final class DateTimeNexus {
      * @param months 月份
      */
     public static Date plusMonths(int months) {
-        return DateTime.withDefault().plusMonths(months).toDate();
+        return DateTime.with().plusMonths(months).toDate();
     }
 
     /**
@@ -346,7 +346,7 @@ public final class DateTimeNexus {
      * @param months 月份
      */
     public static Date minusMonths(int months) {
-        return DateTime.withDefault().minusMonths(months).toDate();
+        return DateTime.with().minusMonths(months).toDate();
     }
 
     /**
@@ -371,7 +371,7 @@ public final class DateTimeNexus {
      * 获取当天时间区间对象
      */
     public static DateTimeRange todayRange() {
-        DateTime dt = DateTime.withDefault();
+        DateTime dt = DateTime.with();
         return new DateTimeRange(dt.startOfDay(), dt.endOfDay());
     }
 
@@ -407,8 +407,8 @@ public final class DateTimeNexus {
         if (date == null) {
             return false;
         }
-        Date yesterdayStart = DateTime.withDefault().plusDays(-1).startOfDay();
-        Date yesterdayEnd = DateTime.withDefault().plusDays(-1).endOfDay();
+        Date yesterdayStart = DateTime.with().plusDays(-1).startOfDay();
+        Date yesterdayEnd = DateTime.with().plusDays(-1).endOfDay();
         return !date.before(yesterdayStart) && !date.after(yesterdayEnd);
     }
 
@@ -421,8 +421,8 @@ public final class DateTimeNexus {
         if (date == null) {
             return false;
         }
-        Date tomorrowStart = DateTime.withDefault().plusDays(1).startOfDay();
-        Date tomorrowEnd = DateTime.withDefault().plusDays(1).endOfDay();
+        Date tomorrowStart = DateTime.with().plusDays(1).startOfDay();
+        Date tomorrowEnd = DateTime.with().plusDays(1).endOfDay();
         return !date.before(tomorrowStart) && !date.after(tomorrowEnd);
     }
 

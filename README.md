@@ -4,7 +4,7 @@
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.0.2-blue)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -27,7 +27,7 @@ TimeNexus 是一个面向 Android 的日期时间框架，通过统一的上下�
 - 一行完成常见操作（`DateTimeNexus` 覆盖 80% 高频使用场景）
 - 链式时间 API
 - 时间区间建模
-- 日历数据建模（`MonthGrid` 提供标准 6x7 的数据模型）
+- 日历数据建模（`MonthGrid` 提供标准 6x7 的数据模型，`MonthCalendar` 负责月历状态与年月切换）
 - 高性能 & 线程安全
 - 多格式智能解析
 
@@ -72,13 +72,13 @@ maven {
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
 dependencies {
-    implementation 'com.github.starseaway:time-nexus:3.0.2'
+    implementation 'com.github.starseaway:time-nexus:3.1.0'
 }
 ```
 
 ```kotlin
 dependencies {
-    implementation("com.github.starseaway:time-nexus:3.0.2")
+    implementation("com.github.starseaway:time-nexus:3.1.0")
 }
 ```
 
@@ -182,18 +182,102 @@ range.daysBetween()
 range.locate(date)
 ```
 
-### 5. 日历网格模型
+### 5. 日历数据模型
 
-* 固定 6x7 = 42 格
-* 自动补齐前后月份
-* UI 无关（纯数据）
-* 更多使用请查看：[MonthGrid.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthGrid.java)
+日历相关能力分为两层：
+
+| 类               | 适用场景                  |
+|-----------------|-----------------------|
+| `MonthGrid`     | 一次性生成某月的 6x7 网格数据     |
+| `MonthCalendar` | 长期持有、需要年月切换与选中日期管理的场景 |
+
+MonthGrid — 月度网格：
+ -  固定 6x7 = 42 格
+ - 自动补齐前后月份
+ - 支持 `rebuild()` 原地刷新（长期复用同一实例）
+ - UI 无关（纯数据）
+ - 更多使用请查看：[MonthGrid.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthGrid.java)
 
 ```java
-// 获取 date 日期的日历网格，一周起始从 Calendar.MONDAY 周一开始
+// 一次性生成：获取 date 所在月的日历网格，一周从周一开始
 MonthGrid grid = MonthGrid.of(date, context, Calendar.MONDAY);
-// 获取 42 天网格数据
+
+// 获取 42 天完整网格
 List<DayInfo> days = grid.getDays();
+// 仅获取当月天数（28~31 天）
+List<DayInfo> monthDays = grid.getCurrentMonthDays();
+// 获取某一周（weekIndex: 0~5）
+List<DayInfo> week = grid.getWeek(0);
+```
+
+MonthCalendar — 月历状态管理：
+ - 内部维护选中日期（默认当前系统时间）
+ - 外部通过 `getSelectedDate()` / `getSelectedDateTime()` 获取副本，避免共享可变状态
+ - 支持年份范围限制（默认 1900 ~ 2100）
+ - 年月切换后自动刷新网格数据
+ - 网格构建为轻量操作（微秒级），可在主线程直接调用
+ - 更多使用请查看：[MonthCalendar.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthCalendar.java)
+
+```java
+public void test() {
+  // 默认以当前系统时间创建
+  MonthCalendar calendar = new MonthCalendar();
+
+  // 指定初始日期
+  MonthCalendar calendar = new MonthCalendar(date);
+
+  // 年份范围与一周起始
+  calendar.setYearRange(2000, 2030)
+          .setFirstDayOfWeek(Calendar.SUNDAY);
+
+  // 年月切换（到达边界时静默忽略）
+  calendar.nextMonth();
+  calendar.prevYear();
+  
+  // 年月直接替换
+  calendar.setYear(2026);
+  calendar.setMonth(7);
+
+  // 获取选中日期副本
+  Date selected = calendar.getSelectedDate();
+  DateTime selectedDt = calendar.getSelectedDateTime();
+
+  // 设置选中日期（跨月时自动刷新网格）
+  calendar.setSelectedDate(date);
+
+  // 获取天数列表（切换月后自动为最新数据）
+  List<DayInfo> days = calendar.getDays(); // 42 天完整网格
+  List<DayInfo> monthDays = calendar.getCurrentMonthDays(); // 仅当月
+
+  // 边界判断（可用于禁用 上一月 / 下一月 等按钮）
+  boolean canPrev = calendar.canPrevMonth();
+  boolean canNext = calendar.canNextMonth();
+}
+```
+
+典型 UI 绑定流程：
+
+```java
+// 页面初始化时创建一次，长期持有
+MonthCalendar calendar = new MonthCalendar();
+
+// 渲染日历列表
+void render() {
+    List<DayInfo> days = calendar.getDays();
+    // adapter.submitList(days) ...
+    prevBtn.setEnabled(calendar.canPrevMonth());
+    nextBtn.setEnabled(calendar.canNextMonth());
+}
+
+// 点击下一月
+void onNextMonth() {
+    calendar.nextMonth();
+}
+
+// 用户点击某一天
+void onDayClick(Date date) {
+    calendar.setSelectedDate(date);
+}
 ```
 
 ### 6. Kotlin 扩展
@@ -225,7 +309,8 @@ com.xinyi.timenexus
 │
 ├── calendar
 │   ├── DayInfo                  # 单日模型（包含日期 / 星期 / 所属月份类型）
-│   └── MonthGrid                # 月度网格模型（42格日历数据生成）
+│   ├── MonthGrid                # 月度网格模型（42格日历数据生成 / 原地刷新）
+│   └── MonthCalendar            # 月历状态管理（选中日期 / 年月切换 / 年份范围）
 │
 ├── enums
 │   ├── Position                 # 时间在区间中的位置（BEFORE / INSIDE / AFTER 等）
@@ -242,6 +327,11 @@ com.xinyi.timenexus
 ```
 
 ## 六、版本变更记录
+
+### V3.1.0 (2026-07-09)
+- ✨ feat: `DateTime` 新增更快实用的 Api 方法
+- ✨ feat: `MonthGrid` 新增 `rebuild()`，支持原地刷新网格数据，长期复用同一实例
+- ✨ feat: `MonthCalendar` 新增月历状态管理类：选中日期、年份范围（默认 1900~2100）、年月切换、自动刷新天数列表
 
 ### V3.0.2 (2026-04-13)
 🦄 refactor:

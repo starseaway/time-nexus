@@ -43,10 +43,10 @@ public class DateTime {
     }
 
     /**
-     * 使用默认上下文创建
+     * 使用全局的时间上下文创建
      */
-    public static DateTime withDefault() {
-        return new DateTime(DateTimeNexus.DEFAULT_CONTEXT);
+    public static DateTime with() {
+        return new DateTime(DateTimeNexus.getContext());
     }
 
     /**
@@ -64,7 +64,7 @@ public class DateTime {
      * @param date Date 对象
      */
     public static DateTime from(Date date) {
-        return withDefault().setDate(date);
+        return with().setDate(date);
     }
 
      /**
@@ -73,7 +73,7 @@ public class DateTime {
      * @param millis 毫秒时间戳
      */
     public static DateTime fromMillis(long millis) {
-        return withDefault().setTimeInMillis(millis);
+        return with().setTimeInMillis(millis);
     }
 
     /**
@@ -83,6 +83,13 @@ public class DateTime {
      */
     public static DateTime fromSeconds(long seconds) {
         return fromMillis(seconds * 1000L);
+    }
+
+    /**
+     * 获取时间上下文
+     */
+    public TimeContext getContext() {
+        return context;
     }
 
     /**
@@ -241,6 +248,13 @@ public class DateTime {
     }
 
     /**
+     * 复制当前时间点为新的 DateTime 实例
+     */
+    public DateTime copy() {
+        return with(context).setTimeInMillis(calendar.getTimeInMillis());
+    }
+
+    /**
      * 获取年份
      */
     public int getYear() {
@@ -262,6 +276,104 @@ public class DateTime {
     }
 
     /**
+     * 设置年份
+     *
+     * @param year 年份
+     */
+    public DateTime setYear(int year) {
+        calendar.set(Calendar.YEAR, year);
+        return this;
+    }
+
+    /**
+     * 设置月份（1-12）
+     *
+     * @param month 月份（1-12）
+     */
+    public DateTime setMonth(int month) {
+        calendar.set(Calendar.MONTH, month - 1);
+        return this;
+    }
+
+    /**
+     * 设置日期（1-31）
+     *
+     * @param day 日期（1-31）
+     */
+    public DateTime setDayOfMonth(int day) {
+        calendar.set(Calendar.DAY_OF_MONTH, day);
+        return this;
+    }
+
+    /**
+     * 获取小时（0-23）
+     */
+    public int getHour() {
+        return calendar.get(Calendar.HOUR_OF_DAY);
+    }
+
+    /**
+     * 获取分钟（0-59）
+     */
+    public int getMinute() {
+        return calendar.get(Calendar.MINUTE);
+    }
+
+    /**
+     * 获取秒（0-59）
+     */
+    public int getSecond() {
+        return calendar.get(Calendar.SECOND);
+    }
+
+    /**
+     * 获取毫秒（0-999）
+     */
+    public int getMillisecond() {
+        return calendar.get(Calendar.MILLISECOND);
+    }
+
+    /**
+     * 设置小时（0-23）
+     *
+     * @param hour 小时（0-23）
+     */
+    public DateTime setHour(int hour) {
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        return this;
+    }
+
+    /**
+     * 设置分钟（0-59）
+     *
+     * @param minute 分钟（0-59）
+     */
+    public DateTime setMinute(int minute) {
+        calendar.set(Calendar.MINUTE, minute);
+        return this;
+    }
+
+    /**
+     * 设置秒（0-59）
+     *
+     * @param second 秒（0-59）
+     */
+    public DateTime setSecond(int second) {
+        calendar.set(Calendar.SECOND, second);
+        return this;
+    }
+
+    /**
+     * 设置毫秒（0-999）
+     *
+     * @param millisecond 毫秒（0-999）
+     */
+    public DateTime setMillisecond(int millisecond) {
+        calendar.set(Calendar.MILLISECOND, millisecond);
+        return this;
+    }
+
+    /**
      * 获取星期（1-7，按 Calendar 的定义）
      */
     public int getDayOfWeek() {
@@ -280,7 +392,7 @@ public class DateTime {
     }
 
     /**
-     * 获取星期名称 TODO 有待测试
+     * 获取星期名称
      *
      * <p> 格式：EEEE，示例：</p>
      * <ul>
@@ -299,7 +411,7 @@ public class DateTime {
     }
 
     /**
-     * 获取星期名称（简写）TODO 有待测试
+     * 获取星期名称（简写）
      *
      * <p> 格式：EEE，示例：</p>
      * <ul>
