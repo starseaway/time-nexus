@@ -4,7 +4,7 @@
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![Version](https://img.shields.io/badge/version-3.1.1-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -72,13 +72,13 @@ maven {
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
 dependencies {
-    implementation 'com.github.starseaway:time-nexus:3.1.0'
+    implementation 'com.github.starseaway:time-nexus:3.1.1'
 }
 ```
 
 ```kotlin
 dependencies {
-    implementation("com.github.starseaway:time-nexus:3.1.0")
+    implementation("com.github.starseaway:time-nexus:3.1.1")
 }
 ```
 
@@ -214,7 +214,7 @@ MonthCalendar — 月历状态管理：
  - 内部维护选中日期（默认当前系统时间）
  - 外部通过 `getSelectedDate()` / `getSelectedDateTime()` 获取副本，避免共享可变状态
  - 支持年份范围限制（默认 1900 ~ 2100）
- - 年月切换后自动刷新网格数据
+ - 配置项（`setYearRange` / `setFirstDayOfWeek`）返回 `void`；选择与导航（`selectXxx` / `nextXxx` / `prevXxx`）返回 `boolean`
  - 网格构建为轻量操作（微秒级），可在主线程直接调用
  - 更多使用请查看：[MonthCalendar.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthCalendar.java)
 
@@ -226,24 +226,26 @@ public void test() {
   // 指定初始日期
   MonthCalendar calendar = new MonthCalendar(date);
 
-  // 年份范围与一周起始
-  calendar.setYearRange(2000, 2030)
-          .setFirstDayOfWeek(Calendar.SUNDAY);
+  // 配置项（void，非法参数抛异常）
+  calendar.setYearRange(2000, 2030);
+  calendar.setFirstDayOfWeek(Calendar.SUNDAY);
 
-  // 年月切换（到达边界时静默忽略）
-  calendar.nextMonth();
+  // 导航（到达边界时返回 false）
+  if (calendar.nextMonth()) {
+      // 刷新 UI
+  }
   calendar.prevYear();
-  
-  // 年月直接替换
-  calendar.setYear(2026);
-  calendar.setMonth(7);
+
+  // 选择年月（超出范围或值未变化时返回 false）
+  calendar.selectYear(2026);
+  calendar.selectMonth(7);
 
   // 获取选中日期副本
   Date selected = calendar.getSelectedDate();
   DateTime selectedDt = calendar.getSelectedDateTime();
 
-  // 设置选中日期（跨月时自动刷新网格）
-  calendar.setSelectedDate(date);
+  // 选择日期（年份超出范围时返回 false）
+  calendar.selectDate(date);
 
   // 获取天数列表（切换月后自动为最新数据）
   List<DayInfo> days = calendar.getDays(); // 42 天完整网格
@@ -271,12 +273,16 @@ void render() {
 
 // 点击下一月
 void onNextMonth() {
-    calendar.nextMonth();
+    if (calendar.nextMonth()) {
+        render();
+    }
 }
 
 // 用户点击某一天
 void onDayClick(Date date) {
-    calendar.setSelectedDate(date);
+    if (calendar.selectDate(date)) {
+        highlight(calendar.getSelectedDate());
+    }
 }
 ```
 
@@ -327,6 +333,9 @@ com.xinyi.timenexus
 ```
 
 ## 六、版本变更记录
+
+### V3.1.1 (2026-07-10)
+- 🦄 refactor: `MonthCalendar` 移除链式调用；设置或切换方法统一返回 `boolean`。
 
 ### V3.1.0 (2026-07-09)
 - ✨ feat: `DateTime` 新增更快实用的 Api 方法

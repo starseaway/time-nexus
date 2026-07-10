@@ -99,17 +99,18 @@ public class MonthCalendar {
     }
 
     /**
-     * 设置选中日期，并重建天数列表
+     * 选择日期，并重建天数列表
      *
      * @param date 日期
+     * @return 日期有效且在年份范围内时返回 {@code true}，否则返回 {@code false}
      */
-    public MonthCalendar setSelectedDate(Date date) {
-        if (date != null) {
-            dateTime.setDate(date);
-            clampYearToRange();
-            rebuildGrid();
+    public boolean selectDate(Date date) {
+        if (!isDateInRange(date)) {
+            return false;
         }
-        return this;
+        dateTime.setDate(date);
+        rebuildGrid();
+        return true;
     }
 
     /**
@@ -166,95 +167,122 @@ public class MonthCalendar {
      *
      * @param minYear 最小年份
      * @param maxYear 最大年份
+     * @throws IllegalArgumentException minYear 大于 maxYear 时抛出
      */
-    public MonthCalendar setYearRange(int minYear, int maxYear) {
-        if (minYear > maxYear) {
+    public void setYearRange(int minYear, int maxYear) {
+        if (!isYearRangeValid(minYear, maxYear)) {
             throw new IllegalArgumentException("minYear 不能大于 maxYear");
+        }
+        if (this.minYear == minYear && this.maxYear == maxYear) {
+            return;
         }
         this.minYear = minYear;
         this.maxYear = maxYear;
         clampYearToRange();
         rebuildGrid();
-        return this;
     }
 
     /**
      * 设置一周起始日，并重建天数列表
      *
-     * @param firstDayOfWeek Calendar.SUNDAY 或 Calendar.MONDAY
+     * @param firstDayOfWeek {@link Calendar#SUNDAY} 或 {@link Calendar#MONDAY}
+     * @throws IllegalArgumentException 参数不是 SUNDAY 或 MONDAY 时抛出
      */
-    public MonthCalendar setFirstDayOfWeek(int firstDayOfWeek) {
+    public void setFirstDayOfWeek(int firstDayOfWeek) {
+        if (!isFirstDayOfWeekValid(firstDayOfWeek)) {
+            throw new IllegalArgumentException("firstDayOfWeek 必须为 Calendar.SUNDAY 或 Calendar.MONDAY");
+        }
+        if (this.firstDayOfWeek == firstDayOfWeek) {
+            return;
+        }
         this.firstDayOfWeek = firstDayOfWeek;
         rebuildGrid();
-        return this;
     }
 
     /**
-     * 设置年份，并重建天数列表
-     *
-     * <p> 会自动限制在 minYear ~ maxYear 范围内 </p>
+     * 选择年份，并重建天数列表
      *
      * @param year 年份
+     * @return 年份在允许范围内且发生变化时返回 {@code true}，否则返回 {@code false}
      */
-    public MonthCalendar setYear(int year) {
-        dateTime.setYear(clampYear(year));
+    public boolean selectYear(int year) {
+        if (!isYearInRange(year) || dateTime.getYear() == year) {
+            return false;
+        }
+        dateTime.setYear(year);
         rebuildGrid();
-        return this;
+        return true;
     }
 
     /**
-     * 设置月份（1-12），并重建天数列表
+     * 选择月份（1-12），并重建天数列表
      *
      * @param month 月份（1-12）
+     * @return 月份有效且发生变化时返回 {@code true}，否则返回 {@code false}
      */
-    public MonthCalendar setMonth(int month) {
+    public boolean selectMonth(int month) {
+        if (!isMonthInRange(month) || dateTime.getMonth() == month) {
+            return false;
+        }
         dateTime.setMonth(month);
         rebuildGrid();
-        return this;
+        return true;
     }
 
     /**
      * 切换到上一年
+     *
+     * @return 切换成功返回 {@code true}，已到达最小年份时返回 {@code false}
      */
-    public MonthCalendar prevYear() {
-        if (canPrevYear()) {
-            dateTime.minusYears(1);
-            rebuildGrid();
+    public boolean prevYear() {
+        if (!canPrevYear()) {
+            return false;
         }
-        return this;
+        dateTime.minusYears(1);
+        rebuildGrid();
+        return true;
     }
 
     /**
      * 切换到下一年
+     *
+     * @return 切换成功返回 {@code true}，已到达最大年份时返回 {@code false}
      */
-    public MonthCalendar nextYear() {
-        if (canNextYear()) {
-            dateTime.plusYears(1);
-            rebuildGrid();
+    public boolean nextYear() {
+        if (!canNextYear()) {
+            return false;
         }
-        return this;
+        dateTime.plusYears(1);
+        rebuildGrid();
+        return true;
     }
 
     /**
      * 切换到上一月
+     *
+     * @return 切换成功返回 {@code true}，已到达边界时返回 {@code false}
      */
-    public MonthCalendar prevMonth() {
-        if (canPrevMonth()) {
-            dateTime.minusMonths(1);
-            rebuildGrid();
+    public boolean prevMonth() {
+        if (!canPrevMonth()) {
+            return false;
         }
-        return this;
+        dateTime.minusMonths(1);
+        rebuildGrid();
+        return true;
     }
 
     /**
      * 切换到下一月
+     *
+     * @return 切换成功返回 {@code true}，已到达边界时返回 {@code false}
      */
-    public MonthCalendar nextMonth() {
-        if (canNextMonth()) {
-            dateTime.plusMonths(1);
-            rebuildGrid();
+    public boolean nextMonth() {
+        if (!canNextMonth()) {
+            return false;
         }
-        return this;
+        dateTime.plusMonths(1);
+        rebuildGrid();
+        return true;
     }
 
     /**
@@ -304,5 +332,45 @@ public class MonthCalendar {
      */
     private int clampYear(int year) {
         return Math.max(minYear, Math.min(maxYear, year));
+    }
+
+    /**
+     * 判断年份是否在允许范围内
+     */
+    private boolean isYearInRange(int year) {
+        return year >= minYear && year <= maxYear;
+    }
+
+    /**
+     * 判断月份是否有效（1-12）
+     */
+    private boolean isMonthInRange(int month) {
+        return month >= 1 && month <= 12;
+    }
+
+    /**
+     * 判断年份范围参数是否有效
+     */
+    private boolean isYearRangeValid(int minYear, int maxYear) {
+        return minYear <= maxYear;
+    }
+
+    /**
+     * 判断一周起始日是否有效
+     */
+    private boolean isFirstDayOfWeekValid(int firstDayOfWeek) {
+        return firstDayOfWeek == Calendar.SUNDAY || firstDayOfWeek == Calendar.MONDAY;
+    }
+
+    /**
+     * 判断日期是否在允许的年份范围内
+     */
+    private boolean isDateInRange(Date date) {
+        if (date == null) {
+            return false;
+        }
+        Calendar cal = dateTime.getContext().newCalendar();
+        cal.setTime(date);
+        return isYearInRange(cal.get(Calendar.YEAR));
     }
 }
