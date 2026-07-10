@@ -4,7 +4,7 @@
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.1.1-blue)
+![Version](https://img.shields.io/badge/version-3.2.0-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -55,7 +55,11 @@ TimeNexus 是一个面向 Android 的日期时间框架，通过统一的上下�
 
 ## 二、SDK 适用范围
 
-- Android SDK 版本：Min SDK 19（Android 4.4）及以上
+| 项目         | 要求                 |
+|------------|--------------------|
+| Min SDK    | 19（Android 4.4）及以上 |
+| JVM Target | 1.8                |
+| Kotlin     | 1.6+               |
 
 ---
 
@@ -71,15 +75,11 @@ maven {
 
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
-dependencies {
-    implementation 'com.github.starseaway:time-nexus:3.1.1'
-}
+implementation 'com.github.starseaway:time-nexus:3.1.1'
 ```
 
 ```kotlin
-dependencies {
-    implementation("com.github.starseaway:time-nexus:3.1.1")
-}
+implementation("com.github.starseaway:time-nexus:3.1.1")
 ```
 
 ## 四、快速开始
@@ -189,7 +189,7 @@ range.locate(date)
 | 类               | 适用场景                  |
 |-----------------|-----------------------|
 | `MonthGrid`     | 一次性生成某月的 6x7 网格数据     |
-| `MonthCalendar` | 长期持有、需要年月切换与选中日期管理的场景 |
+| `MonthCalendar` | 长期持有、需要年月切换与基准时间管理日历网格的场景 |
 
 MonthGrid — 月度网格：
  -  固定 6x7 = 42 格
@@ -211,19 +211,19 @@ List<DayInfo> week = grid.getWeek(0);
 ```
 
 MonthCalendar — 月历状态管理：
- - 内部维护选中日期（默认当前系统时间）
- - 外部通过 `getSelectedDate()` / `getSelectedDateTime()` 获取副本，避免共享可变状态
+ - 内部维护基准时间（默认当前系统时间），日历列表据此生成
+ - 外部通过 `getAnchorDate()` / `getAnchorDateTime()` 获取副本，避免共享可变状态
  - 支持年份范围限制（默认 1900 ~ 2100）
- - 配置项（`setYearRange` / `setFirstDayOfWeek`）返回 `void`；选择与导航（`selectXxx` / `nextXxx` / `prevXxx`）返回 `boolean`
+ - 配置项（`setYearRange` / `setFirstDayOfWeek`）返回 `void`；基准定位与导航（`goToXxx` / `nextXxx` / `prevXxx`）返回 `boolean`
  - 网格构建为轻量操作（微秒级），可在主线程直接调用
  - 更多使用请查看：[MonthCalendar.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthCalendar.java)
 
 ```java
 public void test() {
-  // 默认以当前系统时间创建
+  // 默认以当前系统时间作为基准时间创建
   MonthCalendar calendar = new MonthCalendar();
 
-  // 指定初始日期
+  // 指定初始基准日期
   MonthCalendar calendar = new MonthCalendar(date);
 
   // 配置项（void，非法参数抛异常）
@@ -236,16 +236,16 @@ public void test() {
   }
   calendar.prevYear();
 
-  // 选择年月（超出范围或值未变化时返回 false）
-  calendar.selectYear(2026);
-  calendar.selectMonth(7);
+  // 定位基准时间到指定年月（超出范围或值未变化时返回 false）
+  calendar.goToYear(2026);
+  calendar.goToMonth(7);
 
-  // 获取选中日期副本
-  Date selected = calendar.getSelectedDate();
-  DateTime selectedDt = calendar.getSelectedDateTime();
+  // 获取基准时间副本
+  Date anchorDate = calendar.getAnchorDate();
+  DateTime anchorDateTime = calendar.getAnchorDateTime();
 
-  // 选择日期（年份超出范围时返回 false）
-  calendar.selectDate(date);
+  // 定位基准时间到指定日期（年份超出范围时返回 false）
+  calendar.goToDate(date);
 
   // 获取天数列表（切换月后自动为最新数据）
   List<DayInfo> days = calendar.getDays(); // 42 天完整网格
@@ -278,10 +278,10 @@ void onNextMonth() {
     }
 }
 
-// 用户点击某一天
+// 用户点击某一天，将基准时间定位到该日
 void onDayClick(Date date) {
-    if (calendar.selectDate(date)) {
-        highlight(calendar.getSelectedDate());
+    if (calendar.goToDate(date)) {
+        render();
     }
 }
 ```
@@ -316,7 +316,7 @@ com.xinyi.timenexus
 ├── calendar
 │   ├── DayInfo                  # 单日模型（包含日期 / 星期 / 所属月份类型）
 │   ├── MonthGrid                # 月度网格模型（42格日历数据生成 / 原地刷新）
-│   └── MonthCalendar            # 月历状态管理（选中日期 / 年月切换 / 年份范围）
+│   └── MonthCalendar            # 月历状态管理（基准时间 / 年月切换 / 年份范围）
 │
 ├── enums
 │   ├── Position                 # 时间在区间中的位置（BEFORE / INSIDE / AFTER 等）
@@ -334,7 +334,7 @@ com.xinyi.timenexus
 
 ## 六、版本变更记录
 
-### V3.1.1 (2026-07-10)
+### V3.2.0 (2026-07-10)
 - 🦄 refactor: `MonthCalendar` 移除链式调用；设置或切换方法统一返回 `boolean`。
 
 ### V3.1.0 (2026-07-09)

@@ -11,12 +11,12 @@ import java.util.List;
 /**
  * 月历状态管理，负责日历列表的构建与年月切换
  *
- * <p> 内部维护一个 {@link DateTime} 作为当前选中日期（默认系统时间），
+ * <p> 内部维护一个 {@link DateTime} 作为日历网格生成的基准时间（默认系统时间），
  * 切换年 / 月后通过 {@link MonthGrid#rebuild(Date)} 刷新天数列表。 </p>
  *
  * <p> 性能说明：网格构建仅创建 42 个 {@link DayInfo} 对象并完成简单 Calendar 运算，
  * 耗时通常在微秒级，可在主线程安全调用，无需异步处理。 </p>
- *
+ * 
  * @author 新一
  * @date 2026/7/9 19:33
  */
@@ -33,9 +33,9 @@ public class MonthCalendar {
     public static final int DEFAULT_MAX_YEAR = 2100;
 
     /**
-     * 当前选中日期
+     * 日历网格生成的基准时间
      */
-    private final DateTime dateTime;
+    private final DateTime anchorDateTime;
 
     /**
      * 默认周一起始（Calendar.SUNDAY / Calendar.MONDAY）
@@ -58,14 +58,14 @@ public class MonthCalendar {
     private final MonthGrid monthGrid;
 
     /**
-     * 默认使用当前系统时间创建
+     * 默认使用当前系统时间作为基准时间创建
      */
     public MonthCalendar() {
         this(DateTime.with());
     }
 
     /**
-     * 使用指定日期创建
+     * 使用指定日期作为基准时间创建
      *
      * @param date 日期
      */
@@ -74,41 +74,41 @@ public class MonthCalendar {
     }
 
     /**
-     * 使用指定 DateTime 创建（内部会复制其时间点，不共享可变实例）
+     * 使用指定 DateTime 作为基准时间创建（内部会复制其时间点，不共享可变实例）
      *
      * @param source 源 DateTime
      */
     public MonthCalendar(@NotNull DateTime source) {
-        this.dateTime = source.copy();
-        clampYearToRange();
-        this.monthGrid = MonthGrid.of(dateTime.toDate(), source.getContext(), firstDayOfWeek);
+        this.anchorDateTime = source.copy();
+        clampAnchorYearToRange();
+        this.monthGrid = MonthGrid.of(anchorDateTime.toDate(), source.getContext(), firstDayOfWeek);
     }
 
     /**
-     * 获取当前选中日期的副本
+     * 获取基准日期的副本
      */
-    public Date getSelectedDate() {
-        return new Date(dateTime.toMillis());
+    public Date getAnchorDate() {
+        return new Date(anchorDateTime.toMillis());
     }
 
     /**
-     * 获取当前选中日期的副本
+     * 获取基准时间的副本（新的 DateTime 实例）
      */
-    public DateTime getSelectedDateTime() {
-        return dateTime.copy();
+    public DateTime getAnchorDateTime() {
+        return anchorDateTime.copy();
     }
 
     /**
-     * 选择日期，并重建天数列表
+     * 将基准时间定位到指定日期，并重建天数列表
      *
      * @param date 日期
      * @return 日期有效且在年份范围内时返回 {@code true}，否则返回 {@code false}
      */
-    public boolean selectDate(Date date) {
+    public boolean goToDate(Date date) {
         if (!isDateInRange(date)) {
             return false;
         }
-        dateTime.setDate(date);
+        anchorDateTime.setDate(date);
         rebuildGrid();
         return true;
     }
@@ -135,17 +135,17 @@ public class MonthCalendar {
     }
 
     /**
-     * 获取当前年份
+     * 获取基准时间对应的年份
      */
     public int getYear() {
-        return dateTime.getYear();
+        return anchorDateTime.getYear();
     }
 
     /**
-     * 获取当前月份（1-12）
+     * 获取基准时间对应的月份（1-12）
      */
     public int getMonth() {
-        return dateTime.getMonth();
+        return anchorDateTime.getMonth();
     }
 
     /**
@@ -163,7 +163,7 @@ public class MonthCalendar {
     }
 
     /**
-     * 设置年份范围，并校正当前选中日期
+     * 设置年份范围，并校正基准时间的年份
      *
      * @param minYear 最小年份
      * @param maxYear 最大年份
@@ -178,7 +178,7 @@ public class MonthCalendar {
         }
         this.minYear = minYear;
         this.maxYear = maxYear;
-        clampYearToRange();
+        clampAnchorYearToRange();
         rebuildGrid();
     }
 
@@ -200,31 +200,31 @@ public class MonthCalendar {
     }
 
     /**
-     * 选择年份，并重建天数列表
+     * 将基准时间定位到指定年份，并重建天数列表
      *
      * @param year 年份
      * @return 年份在允许范围内且发生变化时返回 {@code true}，否则返回 {@code false}
      */
-    public boolean selectYear(int year) {
-        if (!isYearInRange(year) || dateTime.getYear() == year) {
+    public boolean goToYear(int year) {
+        if (!isYearInRange(year) || anchorDateTime.getYear() == year) {
             return false;
         }
-        dateTime.setYear(year);
+        anchorDateTime.setYear(year);
         rebuildGrid();
         return true;
     }
 
     /**
-     * 选择月份（1-12），并重建天数列表
+     * 将基准时间定位到指定月份（1-12），并重建天数列表
      *
      * @param month 月份（1-12）
      * @return 月份有效且发生变化时返回 {@code true}，否则返回 {@code false}
      */
-    public boolean selectMonth(int month) {
-        if (!isMonthInRange(month) || dateTime.getMonth() == month) {
+    public boolean goToMonth(int month) {
+        if (!isMonthInRange(month) || anchorDateTime.getMonth() == month) {
             return false;
         }
-        dateTime.setMonth(month);
+        anchorDateTime.setMonth(month);
         rebuildGrid();
         return true;
     }
@@ -238,7 +238,7 @@ public class MonthCalendar {
         if (!canPrevYear()) {
             return false;
         }
-        dateTime.minusYears(1);
+        anchorDateTime.minusYears(1);
         rebuildGrid();
         return true;
     }
@@ -252,7 +252,7 @@ public class MonthCalendar {
         if (!canNextYear()) {
             return false;
         }
-        dateTime.plusYears(1);
+        anchorDateTime.plusYears(1);
         rebuildGrid();
         return true;
     }
@@ -266,7 +266,7 @@ public class MonthCalendar {
         if (!canPrevMonth()) {
             return false;
         }
-        dateTime.minusMonths(1);
+        anchorDateTime.minusMonths(1);
         rebuildGrid();
         return true;
     }
@@ -280,7 +280,7 @@ public class MonthCalendar {
         if (!canNextMonth()) {
             return false;
         }
-        dateTime.plusMonths(1);
+        anchorDateTime.plusMonths(1);
         rebuildGrid();
         return true;
     }
@@ -317,14 +317,14 @@ public class MonthCalendar {
      * 刷新月历网格数据
      */
     private void rebuildGrid() {
-        monthGrid.rebuild(dateTime.toDate(), firstDayOfWeek);
+        monthGrid.rebuild(anchorDateTime.toDate(), firstDayOfWeek);
     }
 
     /**
-     * 将当前年份限制在允许范围内
+     * 将基准时间的年份限制在允许范围内
      */
-    private void clampYearToRange() {
-        dateTime.setYear(clampYear(getYear()));
+    private void clampAnchorYearToRange() {
+        anchorDateTime.setYear(clampYear(getYear()));
     }
 
     /**
@@ -369,7 +369,7 @@ public class MonthCalendar {
         if (date == null) {
             return false;
         }
-        Calendar cal = dateTime.getContext().newCalendar();
+        Calendar cal = anchorDateTime.getContext().newCalendar();
         cal.setTime(date);
         return isYearInRange(cal.get(Calendar.YEAR));
     }
