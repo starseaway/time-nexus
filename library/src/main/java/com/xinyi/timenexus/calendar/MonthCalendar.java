@@ -9,12 +9,24 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * 月历状态管理，负责日历列表的构建与年月切换
+ * 月历状态管理
  *
- * <p>
- *   内部维护一个 {@link DateTime} 作为日历网格生成的基准时间（默认系统时间）；
- *   切换年 / 月后通过 {@link MonthGrid#build(Date)} 刷新天数列表。
- * </p>
+ * <p> 面向日历面板场景，统一管理：</p>
+ * <ul>
+ *   <li> 网格生成所用的基准时间（默认系统当前时间） </li>
+ *   <li> 可展示的年份范围与一周起始日 </li>
+ *   <li> 年月导航、定位，以及固定 42 格天数列表的构建与读取 </li>
+ * </ul>
+ *
+ * <p> API 分层：</p>
+ * <ul>
+ *   <li> 配置：{@link #setYearRange(int, int)}、{@link #setFirstDayOfWeek(int)} </li>
+ *   <li> 导航 / 定位：{@code goToXxx}、{@code nextXxx}、{@code prevXxx}（返回是否生效） </li>
+ *   <li> 构建：{@link #build()} 按当前基准时间生成或刷新 {@link MonthGrid} </li>
+ *   <li> 读取：{@link #getDays()}、{@link #getCurrentMonthDays()} 等，不产生副作用 </li>
+ * </ul>
+ *
+ * <p> 基准状态变更不会自动构建网格；需要最新天数数据时由调用方调用 {@link #build()} </p>
  *
  * @author 新一
  * @date 2026/7/9 19:33
@@ -98,12 +110,10 @@ public class MonthCalendar {
     }
 
     /**
-     * 按当前基准时间显式构建网格数据
-     *
-     * <p> 首次构建与后续刷新均调用此方法；也可依赖 {@link #getDays()} 等读取方法的惰性构建。</p>
+     * 按当前基准时间、一周起始日构建或刷新网格数据
      */
     public void build() {
-        buildGrid();
+        monthGrid.build(anchorDateTime.toDate(), firstDayOfWeek);
     }
 
     /**
@@ -114,7 +124,7 @@ public class MonthCalendar {
     }
 
     /**
-     * 将基准时间定位到指定日期，并构建天数列表
+     * 将基准时间定位到指定日期
      *
      * @param date 日期
      * @return 日期有效且在年份范围内时返回 {@code true}，否则返回 {@code false}
@@ -124,37 +134,27 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setDate(date);
-        refreshGridIfBuilt();
         return true;
     }
 
     /**
-     * 获取完整日历网格（固定 42 天）
-     *
-     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
+     * 获取完整日历网格（固定 42 天；未构建时为空列表）
      */
     public List<DayInfo> getDays() {
-        ensureGridBuilt();
         return monthGrid.getDays();
     }
 
     /**
-     * 获取当前月份的天数列表
-     *
-     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
+     * 获取当前月份的天数列表（未构建时为空列表）
      */
     public List<DayInfo> getCurrentMonthDays() {
-        ensureGridBuilt();
         return monthGrid.getCurrentMonthDays();
     }
 
     /**
-     * 获取当前月历网格
-     *
-     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
+     * 获取当前月历网格对象
      */
     public MonthGrid getMonthGrid() {
-        ensureGridBuilt();
         return monthGrid;
     }
 
@@ -187,7 +187,7 @@ public class MonthCalendar {
     }
 
     /**
-     * 设置年份范围，并校正基准时间的年份
+     * 设置可展示的年份范围；若当前基准年份越界会自动校正
      *
      * @param minYear 最小年份
      * @param maxYear 最大年份
@@ -203,11 +203,10 @@ public class MonthCalendar {
         this.minYear = minYear;
         this.maxYear = maxYear;
         clampAnchorYearToRange();
-        refreshGridIfBuilt();
     }
 
     /**
-     * 设置一周起始日，并重建天数列表
+     * 设置一周起始日
      *
      * @param firstDayOfWeek {@link Calendar#SUNDAY} 或 {@link Calendar#MONDAY}
      * @throws IllegalArgumentException 参数不是 SUNDAY 或 MONDAY 时抛出
@@ -216,15 +215,11 @@ public class MonthCalendar {
         if (!isFirstDayOfWeekValid(firstDayOfWeek)) {
             throw new IllegalArgumentException("firstDayOfWeek 必须为 Calendar.SUNDAY 或 Calendar.MONDAY");
         }
-        if (this.firstDayOfWeek == firstDayOfWeek) {
-            return;
-        }
         this.firstDayOfWeek = firstDayOfWeek;
-        refreshGridIfBuilt();
     }
 
     /**
-     * 将基准时间定位到指定年份，并重建天数列表
+     * 将基准时间定位到指定年份
      *
      * @param year 年份
      * @return 年份在允许范围内且发生变化时返回 {@code true}，否则返回 {@code false}
@@ -234,12 +229,11 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setYear(year);
-        refreshGridIfBuilt();
         return true;
     }
 
     /**
-     * 将基准时间定位到指定月份（1-12），并重建天数列表
+     * 将基准时间定位到指定月份（1-12）
      *
      * @param month 月份（1-12）
      * @return 月份有效且发生变化时返回 {@code true}，否则返回 {@code false}
@@ -249,7 +243,6 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setMonth(month);
-        refreshGridIfBuilt();
         return true;
     }
 
@@ -263,7 +256,6 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.minusYears(1);
-        refreshGridIfBuilt();
         return true;
     }
 
@@ -277,7 +269,6 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.plusYears(1);
-        refreshGridIfBuilt();
         return true;
     }
 
@@ -291,7 +282,6 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.minusMonths(1);
-        refreshGridIfBuilt();
         return true;
     }
 
@@ -305,7 +295,6 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.plusMonths(1);
-        refreshGridIfBuilt();
         return true;
     }
 
@@ -335,33 +324,6 @@ public class MonthCalendar {
      */
     public boolean canNextMonth() {
         return canNextYear() || getMonth() < 12;
-    }
-
-    /**
-     * 若尚未构建，则按当前基准时间构建网格
-     */
-    private void ensureGridBuilt() {
-        if (!monthGrid.isBuilt()) {
-            buildGrid();
-        }
-    }
-
-    /**
-     * 已构建过时才刷新网格数据
-     *
-     * <p> 首次构建留给 {@link #build()} 或读取方法触发 </p>
-     */
-    private void refreshGridIfBuilt() {
-        if (monthGrid.isBuilt()) {
-            buildGrid();
-        }
-    }
-
-    /**
-     * 按当前基准时间构建网格数据
-     */
-    private void buildGrid() {
-        monthGrid.build(anchorDateTime.toDate(), firstDayOfWeek);
     }
 
     /**

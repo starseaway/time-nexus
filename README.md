@@ -4,7 +4,7 @@
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.3.0-blue)
+![Version](https://img.shields.io/badge/version-3.4.0-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -75,11 +75,11 @@ maven {
 
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
-implementation 'com.github.starseaway:time-nexus:3.3.0'
+implementation 'com.github.starseaway:time-nexus:3.4.0'
 ```
 
 ```kotlin
-implementation("com.github.starseaway:time-nexus:3.3.0")
+implementation("com.github.starseaway:time-nexus:3.4.0")
 ```
 
 ## 四、快速开始
@@ -156,19 +156,21 @@ DateTimeNexus.isSameDay(d1, d2)
 * 更多使用请查看：[DateTime.java](library/src/main/java/com/xinyi/timenexus/core/DateTime.java)
 
 ```java
-Date result = DateTime.from(new Date()) // 基于当前时间创建
-        .plusDays(1) // +1 天
-        .plusMonths(1) // +1 月
-        .startOfDay(); // 获取当天的 00:00:00.000
+public void useDateTime() {
+    Date result = DateTime.from(new Date()) // 基于当前时间创建
+            .plusDays(1) // +1 天
+            .plusMonths(1) // +1 月
+            .startOfDay(); // 获取当天的 00:00:00.000
 
-// 字段读写（月份 1-12）
-DateTime dt = DateTime.with()
-        .setYear(2026)
-        .setMonth(2)
-        .adjustDayOfMonth() // 日超过当月最大天数时回调到月末
-        .setTime(14, 30, 0);
+    // 字段读写（月份 1-12）
+    DateTime dt = DateTime.with()
+            .setYear(2026)
+            .setMonth(2)
+            .adjustDayOfMonth() // 日超过当月最大天数时回调到月末
+            .setTime(14, 30, 0);
 
-int daysInMonth = dt.getDaysInMonth(); // 当月天数，常用于日期滚轮
+    int daysInMonth = dt.getDaysInMonth(); // 当月天数，常用于日期滚轮
+}
 ```
 
 ### 4. 时间区间模型
@@ -209,95 +211,73 @@ MonthGrid — 月度网格：
  - 更多使用请查看：[MonthGrid.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthGrid.java)
 
 ```java
-// 空壳创建 + 显式构建
-MonthGrid grid = MonthGrid.create(context, Calendar.MONDAY);
-// grid.build(date);
+public void useMonthGrid(TimeContext context, Date date) {
+    // 空壳创建 + 显式构建
+    MonthGrid grid = MonthGrid.create(context, Calendar.MONDAY);
+    grid.build(date);
 
-// 一次性生成：获取 date 所在月的日历网格，一周从周一开始
-MonthGrid grid = MonthGrid.of(date, context, Calendar.MONDAY);
+    // 一次性生成：获取 date 所在月的日历网格，一周从周一开始
+    MonthGrid builtGrid = MonthGrid.of(date, context, Calendar.MONDAY);
 
-// 获取 42 天完整网格
-List<DayInfo> days = grid.getDays();
-// 仅获取当月天数（28~31 天）
-List<DayInfo> monthDays = grid.getCurrentMonthDays();
-// 获取某一周（weekIndex: 0~5）
-List<DayInfo> week = grid.getWeek(0);
+    // 获取 42 天完整网格
+    List<DayInfo> days = builtGrid.getDays();
+    // 仅获取当月天数（28~31 天）
+    List<DayInfo> monthDays = builtGrid.getCurrentMonthDays();
+    // 获取某一周（weekIndex: 0~5）
+    List<DayInfo> week = builtGrid.getWeek(0);
+}
 ```
 
 MonthCalendar — 月历状态管理：
- - 内部维护基准时间（默认当前系统时间），日历列表据此生成
- - 构造只创建空的 `MonthGrid`，不构建天数；首次 `getDays()` 惰性构建，也可主动 `build()`
- - 外部通过 `getAnchorDate()` / `getAnchorDateTime()` 获取副本，避免共享可变状态
- - 支持年份范围限制（默认 1900 ~ 2100）
- - 配置项（`setYearRange` / `setFirstDayOfWeek`）返回 `void`；基准定位与导航（`goToXxx` / `nextXxx` / `prevXxx`）返回 `boolean`
+ - 管理基准时间、年份范围、一周起始，并提供年月导航与 42 格天数列表
+ - 配置 / 导航 / 构建 / 读取分层：改状态与生成网格解耦，读取不产生副作用
+ - 默认年份范围 1900 ~ 2100；配置项返回 `void`，导航与定位返回 `boolean`
  - 更多使用请查看：[MonthCalendar.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthCalendar.java)
 
 ```java
-public void test() {
-  // 默认以当前系统时间作为基准时间创建（不构建网格）
-  MonthCalendar calendar = new MonthCalendar();
+public void useMonthCalendar() {
+    MonthCalendar calendar = new MonthCalendar();
+    calendar.setYearRange(2000, 2030);
+    calendar.setFirstDayOfWeek(Calendar.SUNDAY);
 
-  // 指定初始基准日期
-  MonthCalendar calendar = new MonthCalendar(date);
-
-  // 配置项（void，非法参数抛异常；未构建前不触发 build）
-  calendar.setYearRange(2000, 2030);
-  calendar.setFirstDayOfWeek(Calendar.SUNDAY);
-
-  // 导航（到达边界时返回 false；已构建过才刷新网格）
-  if (calendar.nextMonth()) {
-      // 刷新 UI
-  }
-  calendar.prevYear();
-
-  // 定位基准时间到指定年月（超出范围或值未变化时返回 false）
-  calendar.goToYear(2026);
-  calendar.goToMonth(7);
-
-  // 获取基准时间副本
-  Date anchorDate = calendar.getAnchorDate();
-  DateTime anchorDateTime = calendar.getAnchorDateTime();
-
-  // 定位基准时间到指定日期（年份超出范围时返回 false）
-  calendar.goToDate(date);
-
-  // 显式构建，或首次 getDays() 时惰性构建
-  calendar.build();
-  List<DayInfo> days = calendar.getDays(); // 42 天完整网格
-  List<DayInfo> monthDays = calendar.getCurrentMonthDays(); // 仅当月
-
-  // 边界判断（可用于禁用 上一月 / 下一月 等按钮）
-  boolean canPrev = calendar.canPrevMonth();
-  boolean canNext = calendar.canNextMonth();
+    if (calendar.nextMonth()) {
+        // 基准年月已更新
+    }
+    calendar.build();
+    List<DayInfo> days = calendar.getDays();
 }
 ```
 
 典型 UI 绑定流程：
 
 ```java
-// 页面初始化时创建一次
-MonthCalendar calendar = new MonthCalendar();
-// calendar.setYearRange(2000, 2030);
+public class CalendarPage {
 
-// 渲染日历列表（首次 getDays 才构建）
-void render() {
-    List<DayInfo> days = calendar.getDays();
-    // adapter.submitList(days) ...
-    prevBtn.setEnabled(calendar.canPrevMonth());
-    nextBtn.setEnabled(calendar.canNextMonth());
-}
+    private final MonthCalendar calendar = new MonthCalendar();
 
-// 点击下一月
-void onNextMonth() {
-    if (calendar.nextMonth()) {
-        render();
+    public void renderTitle() {
+        titleView.setText(calendar.getYear() + "年" + calendar.getMonth() + "月");
+        prevBtn.setEnabled(calendar.canPrevMonth());
+        nextBtn.setEnabled(calendar.canNextMonth());
     }
-}
 
-// 用户点击某一天，将基准时间定位到该日
-void onDayClick(Date date) {
-    if (calendar.goToDate(date)) {
-        render();
+    public void renderDays() {
+        calendar.build();
+        adapter.submitList(calendar.getDays());
+    }
+
+    public void onNextMonth() {
+        if (calendar.nextMonth()) {
+            renderTitle();
+            renderDays();
+        }
+    }
+
+    public void onDayClick(Date date) {
+        if (calendar.goToDate(date)) {
+            renderTitle();
+            renderDays();
+        }
     }
 }
 ```
@@ -350,10 +330,12 @@ com.xinyi.timenexus
 
 ## 六、版本变更记录
 
+### V3.4.0 (2026-07-30)
+- 🦄 refactor: 月历导航与天数列表构建解耦，读取路径不再隐式生成网格，由调用方控制构建时机
+
 ### V3.3.0 (2026-07-30)
 - 🦄 refactor: 月历状态以「网格生成基准时间」表达，配置与导航语义拆分更清晰
-- 🦄 refactor: 网格数据改为显式构建，对象创建阶段不再自动填充天数列表
-- 🦄 refactor: 首次展示可惰性生成网格，后续切换年月复用同一网格实例刷新
+- 🦄 refactor: 年月切换只更新基准状态，天数列表须显式构建，便于界面先刷新年月再刷新列表
 - ✨ feat: 补齐日期时间字段批量设置、当月天数、日合法化调整及时分秒增减，便于替代直接操作 Calendar
 
 ### V3.1.0 (2026-07-09)

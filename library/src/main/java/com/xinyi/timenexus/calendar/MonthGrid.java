@@ -14,12 +14,12 @@ import java.util.List;
 /**
  * 月度日历网格构建器
  *
- * <p> 用于构建一个完整日历面板数据：</p>
+ * <p> 按指定基准日期生成完整月视图数据，能力包括：</p>
  * <ul>
- *   <li> 支持补全上月 / 下月日期 </li>
- *   <li> 支持自定义一周起始（周日 or 周一） </li>
- *   <li> 返回固定网格结构（6行 x 7列 = 42天） </li>
- *   <li> 支持 {@link #build(Date)} 原地刷新，供长期持有的场景复用同一实例 </li>
+ *   <li> 固定 6×7 = 42 格，自动补齐上月 / 下月日期 </li>
+ *   <li> 可配置一周起始（周日或周一） </li>
+ *   <li> 可先创建空实例，再按需 {@link #build(Date)} 生成或刷新数据 </li>
+ *   <li> 也可通过 {@link #of(Date)} 一次性创建并完成构建 </li>
  * </ul>
  *
  * @author 新一
@@ -28,14 +28,14 @@ import java.util.List;
 public class MonthGrid {
 
     /**
-     * 快捷创建 MonthGrid（默认上下文、周一开始）
+     * 创建空的月历网格实例（默认上下文、周一开始）
      */
     public static MonthGrid create() {
         return create(DateTimeNexus.getContext(), Calendar.MONDAY);
     }
 
     /**
-     * 快捷创建 MonthGrid
+     * 创建空的月历网格实例
      *
      * @param context 时间上下文
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
@@ -45,7 +45,7 @@ public class MonthGrid {
     }
 
     /**
-     * 创建并立即构建网格数据
+     * 创建月历网格并按指定日期完成数据构建
      *
      * @param date 任意日期
      */
@@ -54,7 +54,7 @@ public class MonthGrid {
     }
 
     /**
-     * 创建并立即构建网格数据
+     * 创建月历网格并按指定日期、上下文与一周起始完成数据构建
      *
      * @param date 任意日期
      * @param context 时间上下文
@@ -70,7 +70,7 @@ public class MonthGrid {
     private int firstDayOfWeek;
 
     /**
-     * 当前月份的基准日期
+     * 网格对应的基准日期
      *
      * <p> 未 {@link #build(Date)} 构建时为 null </p>
      */
