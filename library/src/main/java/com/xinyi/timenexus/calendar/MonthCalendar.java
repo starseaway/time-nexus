@@ -11,12 +11,11 @@ import java.util.List;
 /**
  * 月历状态管理，负责日历列表的构建与年月切换
  *
- * <p> 内部维护一个 {@link DateTime} 作为日历网格生成的基准时间（默认系统时间），
- * 切换年 / 月后通过 {@link MonthGrid#rebuild(Date)} 刷新天数列表。 </p>
+ * <p>
+ *   内部维护一个 {@link DateTime} 作为日历网格生成的基准时间（默认系统时间）；
+ *   切换年 / 月后通过 {@link MonthGrid#build(Date)} 刷新天数列表。
+ * </p>
  *
- * <p> 性能说明：网格构建仅创建 42 个 {@link DayInfo} 对象并完成简单 Calendar 运算，
- * 耗时通常在微秒级，可在主线程安全调用，无需异步处理。 </p>
- * 
  * @author 新一
  * @date 2026/7/9 19:33
  */
@@ -74,14 +73,14 @@ public class MonthCalendar {
     }
 
     /**
-     * 使用指定 DateTime 作为基准时间创建（内部会复制其时间点，不共享可变实例）
+     * 使用指定 DateTime 作为基准时间创建
      *
      * @param source 源 DateTime
      */
     public MonthCalendar(@NotNull DateTime source) {
         this.anchorDateTime = source.copy();
         clampAnchorYearToRange();
-        this.monthGrid = MonthGrid.of(anchorDateTime.toDate(), source.getContext(), firstDayOfWeek);
+        this.monthGrid = MonthGrid.create(source.getContext(), firstDayOfWeek);
     }
 
     /**
@@ -99,7 +98,23 @@ public class MonthCalendar {
     }
 
     /**
-     * 将基准时间定位到指定日期，并重建天数列表
+     * 按当前基准时间显式构建网格数据
+     *
+     * <p> 首次构建与后续刷新均调用此方法；也可依赖 {@link #getDays()} 等读取方法的惰性构建。</p>
+     */
+    public void build() {
+        buildGrid();
+    }
+
+    /**
+     * 是否已完成至少一次网格构建
+     */
+    public boolean isBuilt() {
+        return monthGrid.isBuilt();
+    }
+
+    /**
+     * 将基准时间定位到指定日期，并构建天数列表
      *
      * @param date 日期
      * @return 日期有效且在年份范围内时返回 {@code true}，否则返回 {@code false}
@@ -109,28 +124,37 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setDate(date);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
     /**
      * 获取完整日历网格（固定 42 天）
+     *
+     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
      */
     public List<DayInfo> getDays() {
+        ensureGridBuilt();
         return monthGrid.getDays();
     }
 
     /**
      * 获取当前月份的天数列表
+     *
+     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
      */
     public List<DayInfo> getCurrentMonthDays() {
+        ensureGridBuilt();
         return monthGrid.getCurrentMonthDays();
     }
 
     /**
      * 获取当前月历网格
+     *
+     * <p> 若尚未构建，会先按当前基准时间执行一次构建。 </p>
      */
     public MonthGrid getMonthGrid() {
+        ensureGridBuilt();
         return monthGrid;
     }
 
@@ -179,7 +203,7 @@ public class MonthCalendar {
         this.minYear = minYear;
         this.maxYear = maxYear;
         clampAnchorYearToRange();
-        rebuildGrid();
+        refreshGridIfBuilt();
     }
 
     /**
@@ -196,7 +220,7 @@ public class MonthCalendar {
             return;
         }
         this.firstDayOfWeek = firstDayOfWeek;
-        rebuildGrid();
+        refreshGridIfBuilt();
     }
 
     /**
@@ -210,7 +234,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setYear(year);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -225,7 +249,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.setMonth(month);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -239,7 +263,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.minusYears(1);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -253,7 +277,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.plusYears(1);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -267,7 +291,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.minusMonths(1);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -281,7 +305,7 @@ public class MonthCalendar {
             return false;
         }
         anchorDateTime.plusMonths(1);
-        rebuildGrid();
+        refreshGridIfBuilt();
         return true;
     }
 
@@ -314,10 +338,30 @@ public class MonthCalendar {
     }
 
     /**
-     * 刷新月历网格数据
+     * 若尚未构建，则按当前基准时间构建网格
      */
-    private void rebuildGrid() {
-        monthGrid.rebuild(anchorDateTime.toDate(), firstDayOfWeek);
+    private void ensureGridBuilt() {
+        if (!monthGrid.isBuilt()) {
+            buildGrid();
+        }
+    }
+
+    /**
+     * 已构建过时才刷新网格数据
+     *
+     * <p> 首次构建留给 {@link #build()} 或读取方法触发 </p>
+     */
+    private void refreshGridIfBuilt() {
+        if (monthGrid.isBuilt()) {
+            buildGrid();
+        }
+    }
+
+    /**
+     * 按当前基准时间构建网格数据
+     */
+    private void buildGrid() {
+        monthGrid.build(anchorDateTime.toDate(), firstDayOfWeek);
     }
 
     /**

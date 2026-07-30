@@ -183,6 +183,63 @@ public class DateTime {
     }
 
     /**
+     * 增加指定小时数
+     *
+     * @param hours 小时数（可为负数）
+     */
+    public DateTime plusHours(int hours) {
+        calendar.add(Calendar.HOUR_OF_DAY, hours);
+        return this;
+    }
+
+    /**
+     * 减少指定小时数
+     *
+     * @param hours 小时数（可为负数）
+     */
+    public DateTime minusHours(int hours) {
+        return plusHours(-hours);
+    }
+
+    /**
+     * 增加指定分钟数
+     *
+     * @param minutes 分钟数（可为负数）
+     */
+    public DateTime plusMinutes(int minutes) {
+        calendar.add(Calendar.MINUTE, minutes);
+        return this;
+    }
+
+    /**
+     * 减少指定分钟数
+     *
+     * @param minutes 分钟数（可为负数）
+     */
+    public DateTime minusMinutes(int minutes) {
+        return plusMinutes(-minutes);
+    }
+
+    /**
+     * 增加指定秒数
+     *
+     * @param seconds 秒数（可为负数）
+     */
+    public DateTime plusSeconds(int seconds) {
+        calendar.add(Calendar.SECOND, seconds);
+        return this;
+    }
+
+    /**
+     * 减少指定秒数
+     *
+     * @param seconds 秒数（可为负数）
+     */
+    public DateTime minusSeconds(int seconds) {
+        return plusSeconds(-seconds);
+    }
+
+    /**
      * 获取当天开始时间（00:00:00.000）
      *
      * @return Date 对象
@@ -370,6 +427,68 @@ public class DateTime {
      */
     public DateTime setMillisecond(int millisecond) {
         calendar.set(Calendar.MILLISECOND, millisecond);
+        return this;
+    }
+
+    /**
+     * 设置年月日（月份为 1-12）
+     *
+     * @param year 年份
+     * @param month 月份（1-12）
+     * @param dayOfMonth 日期（1-31）
+     */
+    public DateTime set(int year, int month, int dayOfMonth) {
+        calendar.set(year, month - 1, dayOfMonth);
+        return this;
+    }
+
+    /**
+     * 设置时分秒（毫秒清零）
+     *
+     * @param hour 小时（0-23）
+     * @param minute 分钟（0-59）
+     * @param second 秒（0-59）
+     */
+    public DateTime setTime(int hour, int minute, int second) {
+        calendar.set(Calendar.HOUR_OF_DAY, hour);
+        calendar.set(Calendar.MINUTE, minute);
+        calendar.set(Calendar.SECOND, second);
+        calendar.set(Calendar.MILLISECOND, 0);
+        return this;
+    }
+
+    /**
+     * 设置年月日时分秒（月份为 1-12，毫秒清零）
+     *
+     * @param year 年份
+     * @param month 月份（1-12）
+     * @param dayOfMonth 日期（1-31）
+     * @param hour 小时（0-23）
+     * @param minute 分钟（0-59）
+     * @param second 秒（0-59）
+     * @param millisecond 毫秒（0-999）
+     */
+    public DateTime set(int year, int month, int dayOfMonth, int hour, int minute, int second, int millisecond) {
+        calendar.set(year, month - 1, dayOfMonth, hour, minute, second);
+        calendar.set(Calendar.MILLISECOND, millisecond);
+        return this;
+    }
+
+    /**
+     * 获取当月天数（28~31）
+     */
+    public int getDaysInMonth() {
+        return calendar.getActualMaximum(Calendar.DAY_OF_MONTH);
+    }
+
+    /**
+     * 将当前日调整为当月合法值（不超过当月最大天数）
+     */
+    public DateTime adjustDayOfMonth() {
+        int maxDay = getDaysInMonth();
+        if (getDayOfMonth() > maxDay) {
+            calendar.set(Calendar.DAY_OF_MONTH, maxDay);
+        }
         return this;
     }
 

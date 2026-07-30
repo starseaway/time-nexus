@@ -75,11 +75,11 @@ maven {
 
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
-implementation 'com.github.starseaway:time-nexus:3.1.1'
+implementation 'com.github.starseaway:time-nexus:3.2.0'
 ```
 
 ```kotlin
-implementation("com.github.starseaway:time-nexus:3.1.1")
+implementation("com.github.starseaway:time-nexus:3.2.0")
 ```
 
 ## 四、快速开始
@@ -160,6 +160,15 @@ Date result = DateTime.from(new Date()) // 基于当前时间创建
         .plusDays(1) // +1 天
         .plusMonths(1) // +1 月
         .startOfDay(); // 获取当天的 00:00:00.000
+
+// 字段读写（月份 1-12）
+DateTime dt = DateTime.with()
+        .setYear(2026)
+        .setMonth(2)
+        .adjustDayOfMonth() // 日超过当月最大天数时回调到月末
+        .setTime(14, 30, 0);
+
+int daysInMonth = dt.getDaysInMonth(); // 当月天数，常用于日期滚轮
 ```
 
 ### 4. 时间区间模型
@@ -186,19 +195,24 @@ range.locate(date)
 
 日历相关能力分为两层：
 
-| 类               | 适用场景                  |
-|-----------------|-----------------------|
-| `MonthGrid`     | 一次性生成某月的 6x7 网格数据     |
-| `MonthCalendar` | 长期持有、需要年月切换与基准时间管理日历网格的场景 |
+| 类               | 适用场景                 |
+|-----------------|----------------------|
+| `MonthGrid`     | 一次性生成某月的 6x7 网格数据    |
+| `MonthCalendar` | 需要年月切换与基准时间管理日历网格的场景 |
 
 MonthGrid — 月度网格：
- -  固定 6x7 = 42 格
+ - 固定 6x7 = 42 格
  - 自动补齐前后月份
- - 支持 `rebuild()` 原地刷新（长期复用同一实例）
+ - `create()` 仅创建空壳；数据构建统一走 `build()`，首次与刷新共用，由调用方控制时机
+ - `of(date)` 为一次性便捷方法：创建后立即 `build`
  - UI 无关（纯数据）
  - 更多使用请查看：[MonthGrid.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthGrid.java)
 
 ```java
+// 空壳创建 + 显式构建
+MonthGrid grid = MonthGrid.create(context, Calendar.MONDAY);
+// grid.build(date);
+
 // 一次性生成：获取 date 所在月的日历网格，一周从周一开始
 MonthGrid grid = MonthGrid.of(date, context, Calendar.MONDAY);
 
@@ -212,25 +226,25 @@ List<DayInfo> week = grid.getWeek(0);
 
 MonthCalendar — 月历状态管理：
  - 内部维护基准时间（默认当前系统时间），日历列表据此生成
+ - 构造只创建空的 `MonthGrid`，不构建天数；首次 `getDays()` 惰性构建，也可主动 `build()`
  - 外部通过 `getAnchorDate()` / `getAnchorDateTime()` 获取副本，避免共享可变状态
  - 支持年份范围限制（默认 1900 ~ 2100）
  - 配置项（`setYearRange` / `setFirstDayOfWeek`）返回 `void`；基准定位与导航（`goToXxx` / `nextXxx` / `prevXxx`）返回 `boolean`
- - 网格构建为轻量操作（微秒级），可在主线程直接调用
  - 更多使用请查看：[MonthCalendar.java](library/src/main/java/com/xinyi/timenexus/calendar/MonthCalendar.java)
 
 ```java
 public void test() {
-  // 默认以当前系统时间作为基准时间创建
+  // 默认以当前系统时间作为基准时间创建（不构建网格）
   MonthCalendar calendar = new MonthCalendar();
 
   // 指定初始基准日期
   MonthCalendar calendar = new MonthCalendar(date);
 
-  // 配置项（void，非法参数抛异常）
+  // 配置项（void，非法参数抛异常；未构建前不触发 build）
   calendar.setYearRange(2000, 2030);
   calendar.setFirstDayOfWeek(Calendar.SUNDAY);
 
-  // 导航（到达边界时返回 false）
+  // 导航（到达边界时返回 false；已构建过才刷新网格）
   if (calendar.nextMonth()) {
       // 刷新 UI
   }
@@ -247,7 +261,8 @@ public void test() {
   // 定位基准时间到指定日期（年份超出范围时返回 false）
   calendar.goToDate(date);
 
-  // 获取天数列表（切换月后自动为最新数据）
+  // 显式构建，或首次 getDays() 时惰性构建
+  calendar.build();
   List<DayInfo> days = calendar.getDays(); // 42 天完整网格
   List<DayInfo> monthDays = calendar.getCurrentMonthDays(); // 仅当月
 
@@ -260,10 +275,11 @@ public void test() {
 典型 UI 绑定流程：
 
 ```java
-// 页面初始化时创建一次，长期持有
+// 页面初始化时创建一次
 MonthCalendar calendar = new MonthCalendar();
+// calendar.setYearRange(2000, 2030);
 
-// 渲染日历列表
+// 渲染日历列表（首次 getDays 才构建）
 void render() {
     List<DayInfo> days = calendar.getDays();
     // adapter.submitList(days) ...
@@ -334,8 +350,11 @@ com.xinyi.timenexus
 
 ## 六、版本变更记录
 
-### V3.2.0 (2026-07-10)
-- 🦄 refactor: `MonthCalendar` 移除链式调用；设置或切换方法统一返回 `boolean`。
+### V3.2.0 (2026-07-30)
+- 🦄 refactor: 月历状态以「网格生成基准时间」表达，配置与导航语义拆分更清晰
+- 🦄 refactor: 网格数据改为显式构建，对象创建阶段不再自动填充天数列表
+- 🦄 refactor: 首次展示可惰性生成网格，后续切换年月复用同一网格实例刷新
+- ✨ feat: 补齐日期时间字段批量设置、当月天数、日合法化调整及时分秒增减，便于替代直接操作 Calendar
 
 ### V3.1.0 (2026-07-09)
 - ✨ feat: `DateTime` 新增更快实用的 Api 方法

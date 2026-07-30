@@ -1,10 +1,13 @@
 package com.xinyi.timenexus.calendar;
 
+import androidx.annotation.NonNull;
+
 import com.xinyi.timenexus.DateTimeNexus;
 import com.xinyi.timenexus.core.TimeContext;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -16,7 +19,7 @@ import java.util.List;
  *   <li> 支持补全上月 / 下月日期 </li>
  *   <li> 支持自定义一周起始（周日 or 周一） </li>
  *   <li> 返回固定网格结构（6行 x 7列 = 42天） </li>
- *   <li> 支持 {@link #rebuild(Date)} 原地刷新，供长期持有的场景复用同一实例 </li>
+ *   <li> 支持 {@link #build(Date)} 原地刷新，供长期持有的场景复用同一实例 </li>
  * </ul>
  *
  * @author 新一
@@ -25,23 +28,40 @@ import java.util.List;
 public class MonthGrid {
 
     /**
-     * 创建 MonthGrid
+     * 快捷创建 MonthGrid（默认上下文、周一开始）
+     */
+    public static MonthGrid create() {
+        return create(DateTimeNexus.getContext(), Calendar.MONDAY);
+    }
+
+    /**
+     * 快捷创建 MonthGrid
+     *
+     * @param context 时间上下文
+     * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
+     */
+    public static MonthGrid create(TimeContext context, int firstDayOfWeek) {
+        return new MonthGrid(context, firstDayOfWeek);
+    }
+
+    /**
+     * 创建并立即构建网格数据
      *
      * @param date 任意日期
      */
     public static MonthGrid of(Date date) {
-        return new MonthGrid(date, DateTimeNexus.getContext(), Calendar.MONDAY);
+        return create().build(date);
     }
 
     /**
-     * 创建 MonthGrid
+     * 创建并立即构建网格数据
      *
      * @param date 任意日期
      * @param context 时间上下文
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
     public static MonthGrid of(Date date, TimeContext context, int firstDayOfWeek) {
-        return new MonthGrid(date, context, firstDayOfWeek);
+        return create(context, firstDayOfWeek).build(date);
     }
 
     /**
@@ -51,6 +71,8 @@ public class MonthGrid {
 
     /**
      * 当前月份的基准日期
+     *
+     * <p> 未 {@link #build(Date)} 构建时为 null </p>
      */
     private Date currentDate;
 
@@ -67,43 +89,49 @@ public class MonthGrid {
     /**
      * 构造函数
      *
-     * @param currentDate 当前时期
      * @param context 日期时间上下文
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
-    private MonthGrid(Date currentDate, TimeContext context, int firstDayOfWeek) {
+    private MonthGrid(@NonNull TimeContext context, int firstDayOfWeek) {
         this.context = context;
-        rebuild(currentDate, firstDayOfWeek);
+        this.firstDayOfWeek = firstDayOfWeek;
     }
 
     /**
-     * 按新日期重建网格数据（保留当前一周起始设置）
+     * 是否已完成至少一次网格构建
+     */
+    public boolean isBuilt() {
+        return currentDate != null;
+    }
+
+    /**
+     * 按日期构建网格数据（保留当前一周起始设置）
      *
      * @param date 任意日期
      */
-    public MonthGrid rebuild(Date date) {
-        return rebuild(date, firstDayOfWeek);
+    public MonthGrid build(@NonNull Date date) {
+        return build(date, firstDayOfWeek);
     }
 
     /**
-     * 按新日期与一周起始重建网格数据
+     * 按日期与一周起始构建网格数据
      *
      * @param date 任意日期
      * @param firstDayOfWeek 一周起始（Calendar.SUNDAY / Calendar.MONDAY）
      */
-    public MonthGrid rebuild(Date date, int firstDayOfWeek) {
+    public MonthGrid build(@NonNull Date date, int firstDayOfWeek) {
         this.currentDate = date;
         this.firstDayOfWeek = firstDayOfWeek;
         days.clear();
-        days.addAll(build());
+        days.addAll(createDays());
         return this;
     }
 
     /**
-     * 获取完整日历数据（固定42个）
+     * 获取完整日历数据（固定42个；未构建时返回空列表）
      */
     public List<DayInfo> getDays() {
-        return days;
+        return isBuilt() ? days : Collections.emptyList();
     }
 
     /**
@@ -111,18 +139,18 @@ public class MonthGrid {
      */
     public List<DayInfo> getCurrentMonthDays() {
         List<DayInfo> result = new ArrayList<>();
-        for (DayInfo d : days) {
-            if (d.getType() == DayInfo.CURRENT_MONTH) {
-                result.add(d);
+        for (DayInfo day : getDays()) {
+            if (day.getType() == DayInfo.CURRENT_MONTH) {
+                result.add(day);
             }
         }
         return result;
     }
 
     /**
-     * 构建日历网格数据
+     * 生成 42 天网格数据
      */
-    private List<DayInfo> build() {
+    private List<DayInfo> createDays() {
         List<DayInfo> result = new ArrayList<>(42);
 
         Calendar cal = context.newCalendar();
@@ -201,7 +229,7 @@ public class MonthGrid {
      * @param index 0~41
      */
     public DayInfo get(int index) {
-        return days.get(index);
+        return getDays().get(index);
     }
 
     /**
@@ -211,7 +239,7 @@ public class MonthGrid {
      */
     public List<DayInfo> getWeek(int weekIndex) {
         int start = weekIndex * 7;
-        return days.subList(start, start + 7);
+        return getDays().subList(start, start + 7);
     }
 
     /**
@@ -223,7 +251,7 @@ public class MonthGrid {
         if (date == null) {
             return false;
         }
-        for (DayInfo day : days) {
+        for (DayInfo day : getDays()) {
             if (day.getDate().equals(date)) {
                 return true;
             }
