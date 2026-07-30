@@ -4,7 +4,7 @@
   <img src="time-nexus-logo.svg" width="500" alt="time-nexus-logo">
 </div>
 
-![Version](https://img.shields.io/badge/version-3.2.0-blue)
+![Version](https://img.shields.io/badge/version-3.3.0-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-green)
 ![API](https://img.shields.io/badge/API-19%2B-brightgreen)
 
@@ -75,11 +75,11 @@ maven {
 
 ### 2. 在 `build.gradle` (Module 级) 中添加依赖：
 ```groovy
-implementation 'com.github.starseaway:time-nexus:3.2.0'
+implementation 'com.github.starseaway:time-nexus:3.3.0'
 ```
 
 ```kotlin
-implementation("com.github.starseaway:time-nexus:3.2.0")
+implementation("com.github.starseaway:time-nexus:3.3.0")
 ```
 
 ## 四、快速开始
@@ -350,7 +350,7 @@ com.xinyi.timenexus
 
 ## 六、版本变更记录
 
-### V3.2.0 (2026-07-30)
+### V3.3.0 (2026-07-30)
 - 🦄 refactor: 月历状态以「网格生成基准时间」表达，配置与导航语义拆分更清晰
 - 🦄 refactor: 网格数据改为显式构建，对象创建阶段不再自动填充天数列表
 - 🦄 refactor: 首次展示可惰性生成网格，后续切换年月复用同一网格实例刷新
